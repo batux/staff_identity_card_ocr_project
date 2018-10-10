@@ -1,0 +1,6 @@
+pip install tesserocr==2.2.2
+pip install opencv-python==3.4.0.12
+pip install opencv-contrib-python==3.4.2.17
+pip install image==1.5.24
+pip install numpy
+pip install imutils
