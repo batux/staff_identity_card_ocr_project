@@ -5,8 +5,6 @@
 #                                                #
 ##################################################
 
-from os import *
-from os.path import *
 from PIL import Image
 from tesserocr import PyTessBaseAPI
 
@@ -24,6 +22,7 @@ def main(args):
 
     image_names = ["1.jpg", "2.jpg", "3.jpg", "4.jpg", "6.jpg", "7.jpg", "8.jpg", "11.jpg", "12.jpg", "13.jpg", "14.jpg"]
 
+    image_counter = 0
     for image_name in image_names:
 
         #### Open Image ####
@@ -79,8 +78,9 @@ def main(args):
 
         #### Perspective Transformation ####
 
-        warped_image = perform_perspective_transformation(last_cnt, processable_image.copy(), resized_image.copy())
-        save_image("./images/warped_image.png", warped_image)
+        warped_image = perform_perspective_transformation(last_cnt, processable_image.copy(), image_counter, resized_image.copy())
+        save_image("./results/warped_image_{0}.png".format(image_counter), warped_image)
+
         #### Perspective Transformation ####
 
 
@@ -93,7 +93,7 @@ def main(args):
 
         #### Draw Textblocks ####
 
-        draw_text_blocks(warped_image.copy(), text_blocks, False)
+        draw_text_blocks(warped_image.copy(), text_blocks, image_counter, True)
 
         #### Draw Textblocks ####
 
@@ -103,6 +103,8 @@ def main(args):
         run_ocr_engine_for_single_image(tresh_warped_gray_scale_img, text_blocks)
 
         #### OCR Part ####
+
+        image_counter = image_counter + 1
 
 
 
@@ -179,10 +181,7 @@ def find_canny_contours(image):
 
         contour_area = cv2.contourArea(contour)
 
-        if contour_area > max_image_area:
-            continue
-
-        if contour_area > min_image_area:
+        if max_image_area > contour_area > min_image_area:
             peri = cv2.arcLength(contour, True)
             approx = cv2.approxPolyDP(contour, 0.02 * peri, True)
 
@@ -247,23 +246,23 @@ def gamma_correction(automatic_resized_image):
     i = 0
     total_value = 0
     hist_size = len(hist)
-    cdf = create_empty_cdf(hist_size)
+    cumulative_histogram = create_empty_cdf(hist_size)
 
     while i < hist_size:
         total_value = total_value + hist[i]
-        cdf[i] = total_value
+        cumulative_histogram[i] = total_value
         i = i + 1
 
 
     i = 0
     first_index = 0
-    while i < len(cdf):
-        if cdf[i] != 0:
+    while i < len(cumulative_histogram):
+        if cumulative_histogram[i] != 0:
             first_index = i
             break
         i = i + 1
 
-    max = len(cdf) - 1
+    max = len(cumulative_histogram) - 1
     min = first_index
 
     padding = (max - min) / 2
@@ -347,7 +346,7 @@ def find_text_blocks_in_image(image):
 
     img_height, img_width = image.shape[:2]
 
-    tresh_of_width = img_width * 0.6
+    tresh_of_width = img_width * 0.3
     tresh_of_height = img_height * 0.05
 
     p = int(image.shape[1] * 0.05)
@@ -368,7 +367,7 @@ def find_text_blocks_in_image(image):
 
         if y > biggest_y and (h >= 5 and w >= 20):
 
-            if (tresh_of_width > w or tresh_of_height < h):
+            if (tresh_of_width < w and tresh_of_height < h):
 
                 biggest_rect = (x, y, w, h)
                 text_blocks.append(biggest_rect)
@@ -461,7 +460,7 @@ def find_ocr_part_in_image(sorted_cnts):
     return last_cnt
 
 
-def perform_perspective_transformation(last_cnt, processable_image, resized_image=None):
+def perform_perspective_transformation(last_cnt, processable_image, image_index, resized_image=None):
 
     last_cnt = prepare_approximated_rectangle(last_cnt)
 
@@ -469,7 +468,7 @@ def perform_perspective_transformation(last_cnt, processable_image, resized_imag
 
     drawed_image = draw_all_shapes(resized_image.copy(), [last_cnt])
 
-    save_image("./images/drawed_image.png", drawed_image)
+    save_image("./results/drawed_image{0}.png".format(image_index), drawed_image)
 
     last_cnt = (1.0 / 0.15) * last_cnt
 
@@ -504,14 +503,14 @@ def find_text_blocks(warped_image):
     return tresh_warped_gray_scale_img, text_blocks
 
 
-def draw_text_blocks(warped_image, text_blocks, enable=False):
+def draw_text_blocks(warped_image, text_blocks, image_counter, enable=False):
 
     if enable:
 
         for textblock in text_blocks:
             draw_rectangle(warped_image, textblock[0], textblock[1], textblock[3], textblock[2], (0,255,0), 3)
 
-        #save_image("./images/drawed_warped_image{0}.png".format(index), copy_img)
+        save_image("./results/textblocks_on_warped_image{0}.png".format(image_counter), warped_image.copy())
 
     return warped_image
 
